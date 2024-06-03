@@ -1,17 +1,29 @@
 import pandas as pd
-
+import json
 from FeatureEncoder import FeatureEncoder
 
 class DataImporter:
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.data = pd.read_csv(file_path)
+    def __init__(self, data_source):
+        self.data = self.load_data(data_source)
         self.data.dropna(inplace=True)  # Drop rows with NaN values
         self.feature_encoders = {}
         self.input_features = None
         self.output_feature = None
         self.prepare_data()
     
+    def load_data(self, data_source):
+        if isinstance(data_source, dict):
+            return pd.DataFrame(data_source)
+        elif isinstance(data_source, str):
+            if data_source.strip().startswith('{'):
+                # JSON string
+                return pd.read_json(data_source)
+            else:
+                # CSV file path
+                return pd.read_csv(data_source)
+        else:
+            raise ValueError("Unsupported data source type. Must be dict, JSON string, or CSV file path.")
+
     def prepare_data(self):
         columns = self.data.columns
         input_columns = columns[:-1]
