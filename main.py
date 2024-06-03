@@ -44,6 +44,8 @@ if __name__ == "__main__":
     trial_details = EasyDict(
         {"num_epochs": {"high": 400}}
     )
+
+    # https://www.kaggle.com/datasets/atharvaingle/crop-recommendation-dataset
     data_path = 'Crop_Recommendation.csv'
 
     train_model(
