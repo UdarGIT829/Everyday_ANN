@@ -36,4 +36,4 @@ jobs:
         if [ -f requirements_NOCUDA.txt ]; then pip install -r requirements_NOCUDA.txt; fi
     - name: Test with pytest
       run: |
-        pytest
+        pytest -W ignore::UserWarning
