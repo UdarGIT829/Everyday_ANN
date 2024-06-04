@@ -43,3 +43,6 @@ As a library the code is in a functional state, but more can be done compatibili
 - Screenshots
 - Support for SQL and MongoDB
 - Support for online dataset loaders like Kaggle and HuggingFace 
+
+## References
+The sample dataset is from Kaggle at `https://www.kaggle.com/datasets/atharvaingle/crop-recommendation-dataset`
