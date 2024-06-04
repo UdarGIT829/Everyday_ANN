@@ -132,7 +132,7 @@ def load_nn(filename):
     return model
 
 
-def run_model(model, input_dict, data_path):
+def run_model(model, prediction_input_data, data_path):
 
     # Prepare the scaler and data importer for the input validation
     data_importer = DataImporter(data_path)
@@ -141,13 +141,14 @@ def run_model(model, input_dict, data_path):
     scaler = StandardScaler()
     scaler.fit(input_features.values)  # Fit scaler on the full dataset
 
+    # Create a DataFrame from the prediction_input
+    prediction_input = DataImporter(prediction_input_data)
+    input_data, _ = prediction_input.get_encoded_data()
+
     # Ensure all required features are present
-    missing_features = [feature for feature in input_features.columns if feature not in input_dict]
+    missing_features = [feature for feature in input_features.columns if feature not in input_data.columns]
     if missing_features:
         raise ValueError(f'Missing features: {missing_features}')
-
-    # Create a DataFrame from the input_dict
-    input_data = pd.DataFrame([input_dict])
 
     # Standardize the input data
     input_data_scaled = scaler.transform(input_data)
@@ -158,12 +159,33 @@ def run_model(model, input_dict, data_path):
     # Run the model
     model.eval()
     with torch.no_grad():
-        output = model(input_tensor)
-        _, predicted = torch.max(output.data, 1)
+        model_output = model(input_tensor)
+        _, predicted = torch.max(model_output.data, 1)
 
+    output = []
     # Decode the predicted output
-    predicted_label = predicted.item()
-    reverse_mapping = {v: k for k, v in data_importer.feature_encoders[data_importer.data.columns[-1]].mapping.items()}
-    predicted_label_decoded = reverse_mapping[predicted_label]
+    if len(predicted)==1:
+        predicted = [predicted]
 
-    return predicted_label_decoded
+    for iterPrediction in predicted:
+        predicted_label = iterPrediction.item()
+        reverse_mapping = {v: k for k, v in data_importer.feature_encoders[data_importer.data.columns[-1]].mapping.items()}
+        predicted_label_decoded = reverse_mapping[predicted_label]
+        output.append(predicted_label_decoded)
+
+    output_file = None
+    # If input_data_source is a CSV file, write the predictions back to a new CSV file
+    if isinstance(prediction_input_data, str) and prediction_input_data.endswith('.csv'):
+        input_df = pd.read_csv(prediction_input_data)
+        output_column = input_df.columns[-1]
+        input_df[output_column] = output
+        output_file = prediction_input_data.replace('.csv', '_predicted.csv')
+        input_df.to_csv(output_file, index=False)
+        print(f"Predictions written to {output_file}")
+
+    result = {"predictions": output}
+    
+    if output_file != None:
+        result["file"] = output_file
+
+    return result
