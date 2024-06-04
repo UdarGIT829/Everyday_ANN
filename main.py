@@ -30,7 +30,7 @@ def train_model(modelPath, data_path, trial_details: EasyDict = EasyDict(), n_tr
     # Save the model
     save_nn(best_model, modelPath)
 
-def run_saved_model(modelPath, input_data: EasyDict, data_path: str):
+def run_saved_model(modelPath, input_data, data_path: str):
     # Load the model
     model = load_nn(modelPath)
 
@@ -52,18 +52,35 @@ if __name__ == "__main__":
         modelPath=modelPath,
         data_path=data_path,
         trial_details=trial_details,
-        n_trials=5
+        n_trials=1
     )
 
-    input_data = EasyDict({
-        'Nitrogen': 90,
-        'Phosphorus': 42,
-        'Potassium': 43,
-        'Temperature': 20.87974371,
-        'Humidity': 82.00274423,
-        'pH_Value': 6.502985292,
-        'Rainfall': 202.9355362
-    })
+    # input_data = "Crop_Recommendation_Pred.csv"
+
+    # input_data = {
+    #     'Nitrogen': [90],
+    #     'Phosphorus': [42],
+    #     'Potassium': [43],
+    #     'Temperature': [20.87974371],
+    #     'Humidity': [82.00274423],
+    #     'pH_Value': [6.502985292],
+    #     'Rainfall': [202.9355362],
+    #     'Crop':[]
+    # }
+    # input_data['Crop'] = "-"*len(input_data[list(input_data.keys())[0]])
+
+    input_data = '''
+    {
+        "Nitrogen": [90],
+        "Phosphorus": [42],
+        "Potassium": [43],
+        "Temperature": [20.87974371],
+        "Humidity": [82.00274423],
+        "pH_Value": [6.502985292],
+        "Rainfall": [202.9355362],
+        "Crop": ["-"]
+    }
+    '''
 
     prediction = run_saved_model(
         modelPath=modelPath,
