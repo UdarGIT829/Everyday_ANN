@@ -19,3 +19,15 @@ pip install -r requirements.txt
 See `main.py` for inspiration for function usage
 
 Generally, aim to use a csv file as an input for the training data and for predictions, although a JSON string or dictionary with the correct column headers will suffice. 
+
+## Planned Features
+
+As a library the code is in a functional state, but more can be done compatibility wise to enable the following features:
+- FastAPI server setup
+- Basic WebUI for API server
+- Electron App/ C# GUI Wrapper
+- Stream output for Optuna trials
+- CI/CD using GitHub Actions and Docker
+- Screenshots
+- Support for SQL and MongoDB
+- Support for online dataset loaders like Kaggle and HuggingFace 
