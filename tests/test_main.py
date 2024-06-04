@@ -1,8 +1,13 @@
 import os
 import pytest
+from easydict import EasyDict
+import sys
+
+# Add the project root to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from Network import train_nn, save_nn, load_nn, run_model
 from DataImporter import DataImporter
-from easydict import EasyDict
 from main import train_model, run_saved_model
 
 DEFAULT_trial_details = EasyDict({
@@ -44,7 +49,9 @@ def test_run_saved_model_csv(model_path, data_path):
         data_path=data_path
     )
     assert prediction is not None
-    assert isinstance(prediction, list)
+    assert isinstance(prediction, dict)
+    assert isinstance(prediction['predictions'],list)
+    assert isinstance(prediction['file'],str)
 
 def test_run_saved_model_dict(model_path, data_path):
     input_data = {
@@ -63,7 +70,8 @@ def test_run_saved_model_dict(model_path, data_path):
         data_path=data_path
     )
     assert prediction is not None
-    assert isinstance(prediction, list)
+    assert isinstance(prediction, dict)
+    assert isinstance(prediction['predictions'],list)
 
 def test_run_saved_model_json(model_path, data_path):
     input_data = '''
@@ -84,4 +92,5 @@ def test_run_saved_model_json(model_path, data_path):
         data_path=data_path
     )
     assert prediction is not None
-    assert isinstance(prediction, list)
+    assert isinstance(prediction, dict)
+    assert isinstance(prediction['predictions'],list)
