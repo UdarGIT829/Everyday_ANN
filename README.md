@@ -2,7 +2,8 @@
 Generic ANN implementation, supports spreadsheet-like and features detection of input and output feature types
 
 # Overview
-This is a library that provides a clean setup for training and running an Artificial Neural Network (ANN).
+This is a library that provides a clean setup for training and running an Artificial Neural Network (ANN) on user provided data.
+
 It features inputting from CSV file, as well as JSON and Dict through functions. Output of pretrained models will be decoded based on original training data as needed.
 NN Optimizations include gradient descent and batching normalization. Also uses Optuna lib to find the best hyperparameters so you dont have to know anything about AI or Machine Learning to make use of this software. 
 
@@ -13,3 +14,8 @@ For the other packages, use:
 ```
 pip install -r requirements.txt
 ```
+
+## Usage
+See `main.py` for inspiration for function usage
+
+Generally, aim to use a csv file as an input for the training data and for predictions, although a JSON string or dictionary with the correct column headers will suffice. 
