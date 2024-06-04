@@ -55,19 +55,39 @@ if __name__ == "__main__":
         n_trials=1
     )
 
-    # input_data = "Crop_Recommendation_Pred.csv"
+    print()
+    
+    input_data = "Testing_Sample.csv"
 
-    # input_data = {
-    #     'Nitrogen': [90],
-    #     'Phosphorus': [42],
-    #     'Potassium': [43],
-    #     'Temperature': [20.87974371],
-    #     'Humidity': [82.00274423],
-    #     'pH_Value': [6.502985292],
-    #     'Rainfall': [202.9355362],
-    #     'Crop':[]
-    # }
-    # input_data['Crop'] = "-"*len(input_data[list(input_data.keys())[0]])
+    prediction = run_saved_model(
+        modelPath=modelPath,
+        input_data=input_data,
+        data_path=data_path
+    )
+
+    print(f"CSV Predicted Value: {prediction}.")
+    print()
+
+    input_data = {
+        'Nitrogen': [90],
+        'Phosphorus': [42],
+        'Potassium': [43],
+        'Temperature': [20.87974371],
+        'Humidity': [82.00274423],
+        'pH_Value': [6.502985292],
+        'Rainfall': [202.9355362],
+        'Crop':[]
+    }
+    input_data['Crop'] = "-"*len(input_data[list(input_data.keys())[0]])
+
+    prediction = run_saved_model(
+        modelPath=modelPath,
+        input_data=input_data,
+        data_path=data_path
+    )
+
+    print(f"Dict Predicted Value: {prediction}.")
+    print()
 
     input_data = '''
     {
@@ -88,4 +108,4 @@ if __name__ == "__main__":
         data_path=data_path
     )
 
-    print(f"Predicted Value: {prediction}.")
+    print(f"JSON string Predicted Value: {prediction}.")
