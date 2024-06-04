@@ -8,11 +8,23 @@ It features inputting from CSV file, as well as JSON and Dict through functions.
 NN Optimizations include gradient descent and batching normalization. Also uses Optuna lib to find the best hyperparameters so you dont have to know anything about AI or Machine Learning to make use of this software. 
 
 ## Installation
-For PyTorch installation, please follow the guide for Cuda 12.1 at https://pytorch.org/get-started/locally/.
 
-For the other packages, use:
+For all the data handling packages, use:
 ```
 pip install -r requirements.txt
+```
+
+If not using CUDA, you should instead install with:
+```
+pip install -r requirements_NOCUDA.txt
+```
+For CUDA instructions, see below.
+
+### CUDA
+For PyTorch installation, please follow the guide for Cuda 12.1 at https://pytorch.org/get-started/locally/.
+The command I use is: 
+```
+pip install torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
 ## Usage
