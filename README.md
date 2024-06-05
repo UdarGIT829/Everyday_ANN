@@ -45,6 +45,7 @@ Library Functionality:
 - ✔️ Support for CSV
 - ✔️ CI/CD using GitHub Actions and Docker
 - 🔄 Screenshots
+- 📝 Use some kind of GitHub Project Management to show this Roadmap
 - 📝 Support for SQL and MongoDB
 - 📝 Support for online dataset loaders like Kaggle and HuggingFace 
 
