@@ -30,21 +30,30 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 ```
 
 ## Usage
-See `main.py` for inspiration for function usage
+See `main.py` for inspiration for usage as a library
 
 Generally, aim to use a csv file as an input for the training data and for predictions, although a JSON string or dictionary with the correct column headers will suffice. 
 
-## Planned Features
+### Server Usage
 
-As a library the code is in a functional state, but more can be done compatibility wise to enable the following features:
-- FastAPI server setup
-- Basic WebUI for API server
-- Electron App/ C# GUI Wrapper
-- Stream output for Optuna trials
-- CI/CD using GitHub Actions and Docker
-- Screenshots
-- Support for SQL and MongoDB
-- Support for online dataset loaders like Kaggle and HuggingFace 
+
+## Roadmap
+✔️ = Complete | 🔄 = In Progress | 📝 = Planning
+
+Library Functionality:
+- ✔️ Support for JSON
+- ✔️ Support for CSV
+- ✔️ CI/CD using GitHub Actions and Docker
+- 🔄 Screenshots
+- 📝 Support for SQL and MongoDB
+- 📝 Support for online dataset loaders like Kaggle and HuggingFace 
+
+Server Functionality:
+- ✔️ FastAPI server setup
+- 📝 Basic WebUI for API server
+- 📝 Electron App/ C# GUI Wrapper
+- 📝 Stream output for Optuna trials
+- 🔄 Screenshots
 
 ## References
 The sample dataset is from Kaggle at `https://www.kaggle.com/datasets/atharvaingle/crop-recommendation-dataset`
