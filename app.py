@@ -26,7 +26,7 @@ class TrainModelRequest(BaseModel):
 
 class PredictionRequest(BaseModel):
     input_data: Dict[str, Any]
-    model_id: str
+    user_model_file: str
 
 @app.post("/train")
 async def train_model_endpoint(
@@ -49,8 +49,8 @@ async def train_model_endpoint(
     """
     data_filename = os.path.splitext(data_file.filename)[0]
     uid = str(uuid.uuid4())
-    model_id = f"{data_filename}_{uid}"
-    model_path = f"{model_id}.pkl"
+    user_model_file = f"{data_filename}_{uid}"
+    model_path = f"{user_model_file}.pkl"
     trial_details_dict = EasyDict(eval(trial_details))  # Convert the JSON string to a dictionary
 
     # Save the uploaded data file to a temporary location
@@ -64,9 +64,9 @@ async def train_model_endpoint(
         os.remove(data_path)  # Clean up the temporary data file
 
     if return_file:
-        return FileResponse(model_path, filename=f"{model_id}.pkl", media_type='application/octet-stream')
+        return FileResponse(model_path, filename=f"{user_model_file}.pkl", media_type='application/octet-stream')
 
-    return {"message": "Model trained and saved successfully.", "model_id": model_id}
+    return {"message": "Model trained and saved successfully.", "user_model_file": user_model_file}
 
 @app.post("/predict")
 async def predict_endpoint(
@@ -86,7 +86,7 @@ async def predict_endpoint(
     Raises:
         HTTPException: If the model or data file is not found.
     """
-    model_path = f"{request.model_id}.pkl"
+    model_path = f"{request.user_model_file}.pkl"
 
     if not os.path.exists(model_path):
         raise HTTPException(status_code=404, detail="Model not found. Train the model first or provide a valid model ID.")
@@ -110,7 +110,7 @@ async def predict_endpoint(
 async def predict_from_file(
     prediction_file: UploadFile = File(...),
     data_file: UploadFile = File(...),
-    model_id: str = Form(...)
+    user_model_file: str = Form(...)
 ):
     """
     Run predictions using the uploaded prediction data file, input data file, and model ID.
@@ -118,7 +118,7 @@ async def predict_from_file(
     Args:
         prediction_file (UploadFile): Uploaded prediction data file.
         data_file (UploadFile): Uploaded input data file.
-        model_id (str): ID of the trained model to use for predictions.
+        user_model_file (str): ID of the trained model to use for predictions.
         
     Returns:
         JSON response with predictions.
@@ -126,7 +126,7 @@ async def predict_from_file(
     Raises:
         HTTPException: If the model is not found.
     """
-    model_path = f"{model_id}.pkl"
+    model_path = f"{user_model_file}.pkl"
 
     if not os.path.exists(model_path):
         raise HTTPException(status_code=404, detail="Model not found. Train the model first or provide a valid model ID.")
