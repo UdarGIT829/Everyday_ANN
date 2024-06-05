@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import os
 from Network import train_model, run_saved_model
 from easydict import EasyDict
@@ -26,7 +26,7 @@ class TrainModelRequest(BaseModel):
 
 class PredictionRequest(BaseModel):
     input_data: Dict[str, Any]
-    user_model_file: str
+    model_id: Optional[str] = None
 
 @app.post("/train")
 async def train_model_endpoint(
@@ -49,8 +49,8 @@ async def train_model_endpoint(
     """
     data_filename = os.path.splitext(data_file.filename)[0]
     uid = str(uuid.uuid4())
-    user_model_file = f"{data_filename}_{uid}"
-    model_path = f"{user_model_file}.pkl"
+    model_id = f"{data_filename}_{uid}"
+    model_path = f"{model_id}.pkl"
     trial_details_dict = EasyDict(eval(trial_details))  # Convert the JSON string to a dictionary
 
     # Save the uploaded data file to a temporary location
@@ -64,21 +64,25 @@ async def train_model_endpoint(
         os.remove(data_path)  # Clean up the temporary data file
 
     if return_file:
-        return FileResponse(model_path, filename=f"{user_model_file}.pkl", media_type='application/octet-stream')
+        return FileResponse(model_path, filename=f"{model_id}.pkl", media_type='application/octet-stream')
 
-    return {"message": "Model trained and saved successfully.", "user_model_file": user_model_file}
+    return {"message": "Model trained and saved successfully.", "model_id": model_id}
 
 @app.post("/predict")
 async def predict_endpoint(
-    request: PredictionRequest,
-    data_file: UploadFile = File(None)
+    input_data: str = Form(...),
+    data_file: UploadFile = File(...),
+    model_id: Optional[str] = Form(None),
+    model_file: Optional[UploadFile] = File(None)
 ):
     """
-    Run predictions using the provided model ID and input data file.
+    Run predictions using the provided model ID or model file and input data file.
     
     Args:
-        request (PredictionRequest): Request body containing input data for predictions and model ID.
-        data_file (UploadFile, optional): Uploaded data file for predictions.
+        input_data (str): JSON string containing input data for predictions.
+        data_file (UploadFile): Uploaded data file for predictions.
+        model_id (str, optional): ID of the trained model to use for predictions.
+        model_file (UploadFile, optional): Uploaded model file for predictions.
         
     Returns:
         JSON response with predictions.
@@ -86,66 +90,31 @@ async def predict_endpoint(
     Raises:
         HTTPException: If the model or data file is not found.
     """
-    model_path = f"{request.user_model_file}.pkl"
-
-    if not os.path.exists(model_path):
-        raise HTTPException(status_code=404, detail="Model not found. Train the model first or provide a valid model ID.")
-
-    if data_file:
-        # Save the uploaded data file to a temporary location
+    if model_id:
+        model_path = f"{model_id}.pkl"
+        if not os.path.exists(model_path):
+            raise HTTPException(status_code=404, detail="Model not found. Train the model first or provide a valid model ID.")
+    elif model_file:
+        # Save the uploaded model file to a temporary location
         with NamedTemporaryFile(delete=False) as tmp:
-            tmp.write(await data_file.read())
-            data_path = tmp.name
+            tmp.write(await model_file.read())
+            model_path = tmp.name
     else:
-        raise HTTPException(status_code=400, detail="Data file must be provided.")
+        raise HTTPException(status_code=400, detail="Either model_id or model_file must be provided.")
 
-    try:
-        prediction = run_saved_model(model_path, request.input_data, data_path)
-    finally:
-        os.remove(data_path)  # Clean up the temporary data file
-
-    return {"predictions": prediction}
-
-@app.post("/predict_from_file")
-async def predict_from_file(
-    prediction_file: UploadFile = File(...),
-    data_file: UploadFile = File(...),
-    user_model_file: str = Form(...)
-):
-    """
-    Run predictions using the uploaded prediction data file, input data file, and model ID.
-    
-    Args:
-        prediction_file (UploadFile): Uploaded prediction data file.
-        data_file (UploadFile): Uploaded input data file.
-        user_model_file (str): ID of the trained model to use for predictions.
-        
-    Returns:
-        JSON response with predictions.
-        
-    Raises:
-        HTTPException: If the model is not found.
-    """
-    model_path = f"{user_model_file}.pkl"
-
-    if not os.path.exists(model_path):
-        raise HTTPException(status_code=404, detail="Model not found. Train the model first or provide a valid model ID.")
-
-    # Save the uploaded prediction data file to a temporary location
-    with NamedTemporaryFile(delete=False) as tmp:
-        tmp.write(await prediction_file.read())
-        prediction_path = tmp.name
-
-    # Save the uploaded input data file to a temporary location
+    # Save the uploaded data file to a temporary location
     with NamedTemporaryFile(delete=False) as tmp:
         tmp.write(await data_file.read())
         data_path = tmp.name
 
+    input_data_dict = eval(input_data)
+
     try:
-        prediction = run_saved_model(model_path, prediction_path, data_path)
+        prediction = run_saved_model(model_path, input_data_dict, data_path)
     finally:
-        os.remove(prediction_path)  # Clean up the temporary prediction data file
-        os.remove(data_path)  # Clean up the temporary input data file
+        os.remove(data_path)  # Clean up the temporary data file
+        if model_file:
+            os.remove(model_path)  # Clean up the temporary model file
 
     return {"predictions": prediction}
 
