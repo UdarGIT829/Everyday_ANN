@@ -45,7 +45,7 @@ jobs:
         sleep 5
         # Predict with the saved model file and Testing_Sample.csv
         PREDICT_RESPONSE=$(curl -s -X POST "http://127.0.0.1:8000/predict" \
-          -F "model_file=@docker_test_model.pkl" \
+          -F "user_model_file=@docker_test_model.pkl" \
           -F "data_file=@Crop_Recommendation.csv" \
           -F "input_data={\"Nitrogen\": [90], \"Phosphorus\": [42], \"Potassium\": [43], \"Temperature\": [20.87974371], \"Humidity\": [82.00274423], \"pH_Value\": [6.502985292], \"Rainfall\": [202.9355362], \"Crop\": [\"-\"]}")
         echo "Predict Response with saved model: $PREDICT_RESPONSE"
