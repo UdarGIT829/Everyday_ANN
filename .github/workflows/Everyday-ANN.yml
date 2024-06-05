@@ -40,7 +40,7 @@ jobs:
     - name: Run curl tests
       run: |
         # Train the model with uploaded data file and get model ID
-        TRAIN_RESPONSE=$(curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=1" http://127.0.0.1:8000/train)
+        TRAIN_RESPONSE=$(curl -s -F "data_file=@data/Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=1" http://127.0.0.1:8000/train)
         echo "Train Response: $TRAIN_RESPONSE"
 
         # Extract model_id from the response
@@ -49,7 +49,7 @@ jobs:
 
         # Predict with uploaded model ID, data file, and JSON data
         PREDICT_RESPONSE=$(curl -s -X POST "http://127.0.0.1:8000/predict" \
-          -F "data_file=@Crop_Recommendation.csv" \
+          -F "data_file=@data/Crop_Recommendation.csv" \
           -F "input_data={\"Nitrogen\": [90], \"Phosphorus\": [42], \"Potassium\": [43], \"Temperature\": [20.87974371], \"Humidity\": [82.00274423], \"pH_Value\": [6.502985292], \"Rainfall\": [202.9355362], \"Crop\": [\"-\"]}" \
           -F "model_id=$MODEL_ID")
         echo "Predict Response: $PREDICT_RESPONSE"
@@ -59,8 +59,8 @@ jobs:
 
         # Predict with uploaded model ID, data file, and prediction file
         PREDICT_RESPONSE_FILE=$(curl -s -X POST "http://127.0.0.1:8000/predict" \
-          -F "data_file=@Crop_Recommendation.csv" \
-          -F "prediction_file=@Testing_Sample.csv" \
+          -F "data_file=@data/Crop_Recommendation.csv" \
+          -F "prediction_file=@data/Testing_Sample.csv" \
           -F "model_id=$MODEL_ID")
         echo "Predict Response with prediction file: $PREDICT_RESPONSE_FILE"
 
@@ -68,13 +68,13 @@ jobs:
         echo $PREDICT_RESPONSE_FILE | grep -q '"predictions"' || (echo "Predictions not found in response" && exit 1)
 
         # Train the model and get the model file
-        curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=10" http://127.0.0.1:8000/train?return_file=true --output docker_test_model.pkl
+        curl -s -F "data_file=@data/Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=1" http://127.0.0.1:8000/train?return_file=true --output docker_test_model.pkl
         echo "Model file saved as docker_test_model.pkl"
 
         # Predict with the saved model file and Crop_Recommendation.csv
         PREDICT_RESPONSE=$(curl -s -X POST "http://127.0.0.1:8000/predict" \
           -F "model_file=@docker_test_model.pkl" \
-          -F "data_file=@Crop_Recommendation.csv" \
+          -F "data_file=@data/Crop_Recommendation.csv" \
           -F "input_data={\"Nitrogen\": [90], \"Phosphorus\": [42], \"Potassium\": [43], \"Temperature\": [20.87974371], \"Humidity\": [82.00274423], \"pH_Value\": [6.502985292], \"Rainfall\": [202.9355362], \"Crop\": [\"-\"]}")
         echo "Predict Response with saved model: $PREDICT_RESPONSE"
 
@@ -84,8 +84,8 @@ jobs:
         # Predict with the saved model file and prediction file
         PREDICT_RESPONSE_FILE=$(curl -s -X POST "http://127.0.0.1:8000/predict" \
           -F "model_file=@docker_test_model.pkl" \
-          -F "data_file=@Crop_Recommendation.csv" \
-          -F "prediction_file=@Testing_Sample.csv")
+          -F "data_file=@data/Crop_Recommendation.csv" \
+          -F "prediction_file=@data/Testing_Sample.csv")
         echo "Predict Response with saved model and prediction file: $PREDICT_RESPONSE_FILE"
 
         # Check if predictions are present in the response
