@@ -12,6 +12,7 @@ class DataImporter:
         self.feature_encoders = {}
         self.input_features = None
         self.output_feature = None
+        self.column_names = None
         self.prepare_data()
     
     def load_data(self, data_source):
@@ -41,6 +42,9 @@ class DataImporter:
             encoder = FeatureEncoder(column, self.data[column])
             self.feature_encoders[column] = encoder
             encoded_inputs.append(encoder.encoded_data)
+
+        self.column_names = []
+        self.column_names += [iterEncoder.column_name for iterEncoder in self.feature_encoders.values()]
         
         # Combine encoded input features into a DataFrame
         self.input_features = pd.concat(encoded_inputs, axis=1)
@@ -49,6 +53,9 @@ class DataImporter:
         output_encoder = FeatureEncoder(output_column, self.data[output_column])
         self.feature_encoders[output_column] = output_encoder
         self.output_feature = output_encoder.encoded_data
+
+        self.column_names += [self.feature_encoders[output_column].column_name]
+
     
     def get_encoded_data(self):
         return self.input_features, self.output_feature
