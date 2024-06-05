@@ -70,19 +70,21 @@ async def train_model_endpoint(
 
 @app.post("/predict")
 async def predict_endpoint(
-    input_data: str = Form(...),
     data_file: UploadFile = File(...),
     model_id: Optional[str] = Form(None),
-    model_file: Optional[UploadFile] = File(None)
+    model_file: Optional[UploadFile] = File(None),
+    input_data: Optional[str] = Form(None),
+    prediction_file: Optional[UploadFile] = File(None)
 ):
     """
-    Run predictions using the provided model ID or model file and input data file.
+    Run predictions using the provided model ID or model file and input data or prediction file.
     
     Args:
-        input_data (str): JSON string containing input data for predictions.
         data_file (UploadFile): Uploaded data file for predictions.
         model_id (str, optional): ID of the trained model to use for predictions.
         model_file (UploadFile, optional): Uploaded model file for predictions.
+        input_data (str, optional): JSON string containing input data for predictions.
+        prediction_file (UploadFile, optional): Uploaded file containing prediction input data.
         
     Returns:
         JSON response with predictions.
@@ -107,7 +109,17 @@ async def predict_endpoint(
         tmp.write(await data_file.read())
         data_path = tmp.name
 
-    input_data_dict = eval(input_data)
+    if prediction_file:
+        # Save the uploaded prediction data file to a temporary location
+        with NamedTemporaryFile(delete=False) as tmp:
+            tmp.write(await prediction_file.read())
+            prediction_path = tmp.name
+
+        input_data_dict=prediction_path
+    elif input_data:
+        input_data_dict = eval(input_data)
+    else:
+        raise HTTPException(status_code=400, detail="Either input_data or prediction_file must be provided.")
 
     try:
         prediction = run_saved_model(model_path, input_data_dict, data_path)
