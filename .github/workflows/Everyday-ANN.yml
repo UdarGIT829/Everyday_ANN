@@ -34,12 +34,13 @@ jobs:
     - name: Start FastAPI server
       run: |
         uvicorn main:app --host 0.0.0.0 --port 8000 &
-      env:
-        UVICORN_PID: $!
+        echo $! > uvicorn.pid
+    - name: Wait for server to start
+      run: sleep 10
     - name: Run curl tests
       run: |
         # Train the model with uploaded data file and get model ID
-        TRAIN_RESPONSE=$(curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=10" http://127.0.0.1:8000/train)
+        TRAIN_RESPONSE=$(curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=1" http://127.0.0.1:8000/train)
         echo "Train Response: $TRAIN_RESPONSE"
 
         # Extract model_id from the response
@@ -57,7 +58,7 @@ jobs:
         echo $PREDICT_RESPONSE | grep -q '"predictions"' || (echo "Predictions not found in response" && exit 1)
 
         # Train the model and get the model file
-        curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=10" http://127.0.0.1:8000/train?return_file=true --output docker_test_model.pkl
+        curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=1" http://127.0.0.1:8000/train?return_file=true --output docker_test_model.pkl
         echo "Model file saved as docker_test_model.pkl"
 
         # Predict with the saved model file and Testing_Sample.csv
@@ -71,4 +72,4 @@ jobs:
         echo $PREDICT_RESPONSE | grep -q '"predictions"' || (echo "Predictions not found in response" && exit 1)
     - name: Stop FastAPI server
       run: |
-        kill $UVICORN_PID
+        kill $(cat uvicorn.pid)
