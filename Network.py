@@ -274,3 +274,38 @@ def run_model(model, prediction_input_data, data_path):
         result["file"] = output_file
 
     return result
+
+DEFAULT_trial_details = EasyDict({
+    "hidden_layer_sizes": {"low": 4, "high": 128},
+    "num_epochs": {"low": 50, "high": 1000},
+    "learning_rate": {"low": 1e-5, "high": 1e-1},
+    "batch_size": {"low": 16, "high": 128},
+    "activation": ['ReLU', 'Tanh', 'LeakyReLU', 'ELU', 'GELU', 'Swish']
+})
+
+def merge_trial_details(defaults, overrides):
+    merged = EasyDict(defaults.copy())
+    for key, value in overrides.items():
+        if key in merged and isinstance(merged[key], dict):
+            merged[key].update(value)
+        else:
+            merged[key] = value
+    return merged
+
+def train_model(modelPath, data_path, trial_details: EasyDict = EasyDict(), n_trials=5):
+    # Merge trial details
+    trial_details = merge_trial_details(DEFAULT_trial_details, trial_details)
+
+    # Train the model
+    best_model = train_nn(data_path, trial_details, n_trials)
+
+    # Save the model
+    save_nn(best_model, modelPath)
+
+def run_saved_model(modelPath, input_data, data_path: str):
+    # Load the model
+    model = load_nn(modelPath)
+
+    # Run the model
+    predicted_label = run_model(model, input_data, data_path)
+    return predicted_label
