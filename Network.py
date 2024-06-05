@@ -14,6 +14,72 @@ import pickle
 from DataImporter import DataImporter
 
 class FlexibleANN(nn.Module):
+    """Description:
+    Flexible Artificial Neural Network (ANN) for Wide Usability
+
+    This class implements a flexible artificial neural network using PyTorch. It supports various activation functions,
+    hidden layer sizes, and batch normalization. The network can be trained, saved, loaded, and used for predictions
+    with ease.
+
+    Attributes:
+        network (nn.Sequential): The neural network model.
+        column_headers (list): List of column headers for the input features.
+
+    Methods:
+        forward(x): Performs a forward pass through the network.
+        run(prediction_input_data, data_path): Runs the model to make predictions on the given input data.
+    
+    Usage Instructions:
+    
+    1. **Training the Model:**
+        - Use the `train_nn` function to train the model with your data and desired hyperparameters.
+        - Example:
+            ```python
+            trial_details = EasyDict({
+                "hidden_layer_sizes": {"low": 4, "high": 128},
+                "num_epochs": {"low": 50, "high": 1000},
+                "learning_rate": {"low": 1e-5, "high": 1e-1},
+                "batch_size": {"low": 16, "high": 128},
+                "activation": ['ReLU', 'Tanh', 'LeakyReLU', 'ELU', 'GELU', 'Swish']
+            })
+            best_model = train_nn('path/to/data.csv', trial_details, n_trials=100)
+            save_nn(best_model, 'best_model.pkl')
+            ```
+
+    2. **Loading the Model:**
+        - Load a previously saved model using the `load_nn` function.
+        - Example:
+            ```python
+            model = load_nn('best_model.pkl')
+            ```
+
+    3. **Making Predictions:**
+        - Use the `run` method of the loaded model to make predictions on new data.
+        - Example:
+            ```python
+            input_data = {
+                'Nitrogen': [90],
+                'Phosphorus': [42],
+                'Potassium': [43],
+                'Temperature': [20.87974371],
+                'Humidity': [82.00274423],
+                'pH_Value': [6.502985292],
+                'Rainfall': [202.9355362],
+                'Crop': ['-']
+            }
+            data_path = 'path/to/data.csv'
+            prediction = model.run(input_data, data_path)
+            print(f"Predicted Value: {prediction}")
+            ```
+    
+    4. **Running from CSV:**
+        - The `run` method can also accept a path to a CSV file as input.
+        - Example:
+            ```python
+            prediction = model.run('path/to/input_data.csv', 'path/to/data.csv')
+            print(f"Predicted Value: {prediction}")
+            ```
+    """
     def __init__(self, input_size, hidden_layer_sizes, output_size, activation_function):
         super(FlexibleANN, self).__init__()
         layers = []
@@ -26,9 +92,64 @@ class FlexibleANN(nn.Module):
         layers.append(nn.Linear(in_size, output_size))
         layers.append(nn.Softmax(dim=1))
         self.network = nn.Sequential(*layers)
+
+        self.column_headers = []
     
     def forward(self, x):
         return self.network(x)
+    
+    def run(self, prediction_input_data, data_path):
+        """Description:
+        Run the model to make predictions.
+
+        Args:
+            prediction_input_data (str, dict, or JSON string): The input data for making predictions. This can be a path to a CSV file, a dictionary, or a JSON string.
+            data_path (str): The path to the data file used for training the model.
+
+        Returns:
+            list: The predicted labels for the input data.
+            dict: If the input data is a CSV file, a dictionary containing the path to the output file with predictions is returned.
+        """
+        # Prepare the scaler and data importer for the input validation
+        data_importer = DataImporter(data_path)
+
+        input_features, _ = data_importer.get_encoded_data()
+        scaler = StandardScaler()
+        scaler.fit(input_features.values)  # Fit scaler on the full dataset
+
+        # Create a DataFrame from the prediction_input
+        prediction_input = DataImporter(prediction_input_data)
+        input_data, _ = prediction_input.get_encoded_data()
+
+        # Ensure all required features are present
+        missing_features = [feature for feature in input_features.columns if feature not in input_data.columns]
+        if missing_features:
+            raise ValueError(f'Missing features: {missing_features}')
+
+        # Standardize the input data
+        input_data_scaled = scaler.transform(input_data)
+
+        # Convert to PyTorch tensor
+        input_tensor = torch.tensor(input_data_scaled, dtype=torch.float32)
+
+        # Run the model
+        self.eval()
+        with torch.no_grad():
+            model_output = self(input_tensor)
+            _, predicted = torch.max(model_output.data, 1)
+
+        output = []
+        # Decode the predicted output
+        if len(predicted) == 1:
+            predicted = [predicted]
+
+        for iterPrediction in predicted:
+            predicted_label = iterPrediction.item()
+            reverse_mapping = {v: k for k, v in data_importer.feature_encoders[data_importer.data.columns[-1]].mapping.items()}
+            predicted_label_decoded = reverse_mapping[predicted_label]
+            output.append(predicted_label_decoded)
+
+        return output
 
 def get_activation_function(name):
     activations = {
@@ -85,6 +206,7 @@ def train_nn(data_path, trial_details, n_trials=100):
         input_size = X_train.shape[1]
         output_size = len(data_importer.feature_encoders[data_importer.data.columns[-1]].mapping)
         model = FlexibleANN(input_size, hidden_layer_sizes, output_size, activation_function)
+        model.column_headers = data_importer.column_names
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -134,44 +256,7 @@ def load_nn(filename):
 
 def run_model(model, prediction_input_data, data_path):
 
-    # Prepare the scaler and data importer for the input validation
-    data_importer = DataImporter(data_path)
-
-    input_features, _ = data_importer.get_encoded_data()
-    scaler = StandardScaler()
-    scaler.fit(input_features.values)  # Fit scaler on the full dataset
-
-    # Create a DataFrame from the prediction_input
-    prediction_input = DataImporter(prediction_input_data)
-    input_data, _ = prediction_input.get_encoded_data()
-
-    # Ensure all required features are present
-    missing_features = [feature for feature in input_features.columns if feature not in input_data.columns]
-    if missing_features:
-        raise ValueError(f'Missing features: {missing_features}')
-
-    # Standardize the input data
-    input_data_scaled = scaler.transform(input_data)
-
-    # Convert to PyTorch tensor
-    input_tensor = torch.tensor(input_data_scaled, dtype=torch.float32)
-
-    # Run the model
-    model.eval()
-    with torch.no_grad():
-        model_output = model(input_tensor)
-        _, predicted = torch.max(model_output.data, 1)
-
-    output = []
-    # Decode the predicted output
-    if len(predicted)==1:
-        predicted = [predicted]
-
-    for iterPrediction in predicted:
-        predicted_label = iterPrediction.item()
-        reverse_mapping = {v: k for k, v in data_importer.feature_encoders[data_importer.data.columns[-1]].mapping.items()}
-        predicted_label_decoded = reverse_mapping[predicted_label]
-        output.append(predicted_label_decoded)
+    output = model.run(prediction_input_data, data_path)
 
     output_file = None
     # If input_data_source is a CSV file, write the predictions back to a new CSV file
