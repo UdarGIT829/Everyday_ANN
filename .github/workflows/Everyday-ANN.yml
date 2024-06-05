@@ -33,7 +33,7 @@ jobs:
         if [ -f requirements_NOCUDA.txt ]; then pip install -r requirements_NOCUDA.txt; fi
     - name: Start FastAPI server
       run: |
-        uvicorn main:app --host 0.0.0.0 --port 8000 &
+        uvicorn app:app --host 0.0.0.0 --port 8000 &
         echo $! > uvicorn.pid
     - name: Wait for server to start
       run: sleep 10
@@ -43,15 +43,15 @@ jobs:
         TRAIN_RESPONSE=$(curl -s -F "data_file=@Crop_Recommendation.csv" -F "trial_details={\"num_epochs\":{\"high\":400}}" -F "n_trials=1" http://127.0.0.1:8000/train)
         echo "Train Response: $TRAIN_RESPONSE"
 
-        # Extract model_id from the response
-        MODEL_ID=$(echo $TRAIN_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['model_id'])")
+        # Extract user_model_file from the response
+        MODEL_ID=$(echo $TRAIN_RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin)['user_model_file'])")
         echo "Model ID: $MODEL_ID"
 
         # Predict with uploaded model ID, data file, and JSON data
         PREDICT_RESPONSE=$(curl -s -X POST "http://127.0.0.1:8000/predict" \
           -F "data_file=@Testing_Sample.csv" \
           -F "input_data={\"Nitrogen\": [90], \"Phosphorus\": [42], \"Potassium\": [43], \"Temperature\": [20.87974371], \"Humidity\": [82.00274423], \"pH_Value\": [6.502985292], \"Rainfall\": [202.9355362], \"Crop\": [\"-\"]}" \
-          -F "model_id=$MODEL_ID")
+          -F "user_model_file=$MODEL_ID")
         echo "Predict Response: $PREDICT_RESPONSE"
 
         # Check if predictions are present in the response
