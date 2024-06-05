@@ -12,18 +12,18 @@ if __name__ == "__main__":
     )
 
     # https://www.kaggle.com/datasets/atharvaingle/crop-recommendation-dataset
-    data_path = 'Crop_Recommendation.csv'
+    data_path = 'data\Crop_Recommendation.csv'
 
     train_model(
         modelPath=modelPath,
         data_path=data_path,
         trial_details=trial_details,
-        n_trials=15
+        n_trials=5
     )
 
     # print()
     
-    # input_data = "Testing_Sample.csv"
+    # input_data = "data\Testing_Sample.csv"
 
     # prediction = run_saved_model(
     #     modelPath=modelPath,
