@@ -33,7 +33,7 @@ jobs:
         if [ -f requirements_NOCUDA.txt ]; then pip install -r requirements_NOCUDA.txt; fi
     - name: Start FastAPI server
       run: |
-        uvicorn main:app --host 0.0.0.0 --port 8000 &
+        uvicorn app:app --host 0.0.0.0 --port 8000 &
         echo $! > uvicorn.pid
     - name: Wait for server to start
       run: sleep 10
