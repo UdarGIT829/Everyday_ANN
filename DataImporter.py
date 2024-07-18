@@ -1,6 +1,7 @@
 import pandas as pd
 import json
 from io import StringIO
+import os
 
 from FeatureEncoder import FeatureEncoder
 
@@ -19,6 +20,9 @@ class DataImporter:
         if isinstance(data_source, dict):
             self.nature = "dict"
             return pd.DataFrame(data_source)
+        elif isinstance(data_source, pd.DataFrame):
+            self.nature = "pandas_df"
+            return data_source
         elif isinstance(data_source, str):
             if data_source.strip().startswith('{'):
                 # JSON string
