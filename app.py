@@ -1,16 +1,28 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 import os
-from Network import train_model, run_saved_model
+from Network import train_model, run_saved_model, hash_file_start
 from easydict import EasyDict
 from tempfile import NamedTemporaryFile
 import uvicorn
 import uuid
+from starlette.requests import Request
+
+from DataImporter import DataImporter
+import pickle
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# Mount static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Set up templates directory
+templates = Jinja2Templates(directory="templates")
 
 DEFAULT_trial_details = EasyDict({
     "hidden_layer_sizes": {"low": 4, "high": 128},
@@ -27,6 +39,64 @@ class TrainModelRequest(BaseModel):
 class PredictionRequest(BaseModel):
     input_data: Dict[str, Any]
     user_model_id: Optional[str] = None
+
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/load_model")
+async def load_model(model_file: UploadFile = File(...)):
+    with NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(await model_file.read())
+        model_path = tmp.name
+    
+    try:
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        training_metadata = model.training_metadata
+        column_headers = model.column_headers
+    finally:
+        os.remove(model_path)
+    
+    return JSONResponse(content={"training_metadata": training_metadata, "column_headers": column_headers})
+
+@app.post("/load_data_file")
+async def load_data_file(data_file: UploadFile = File(...)):
+    with NamedTemporaryFile(delete=False) as tmp:
+        tmp.write(await data_file.read())
+        data_path = tmp.name
+
+    try:
+        data_importer = DataImporter(data_path)
+        column_headers = data_importer.column_names
+    finally:
+        os.remove(data_path)
+    
+    return JSONResponse(content={"column_headers": column_headers})
+
+@app.post("/validate_model_data_file")
+async def validate_model_data_file(model_file: UploadFile = File(...), data_file: UploadFile = File(...)):
+    with NamedTemporaryFile(delete=False) as tmp_model:
+        tmp_model.write(await model_file.read())
+        model_path = tmp_model.name
+
+    with NamedTemporaryFile(delete=False) as tmp_data:
+        tmp_data.write(await data_file.read())
+        data_path = tmp_data.name
+
+    try:
+        with open(model_path, 'rb') as f:
+            model = pickle.load(f)
+        data_hash = hash_file_start(data_path)
+        if data_hash == model.training_metadata.get("data_hash"):
+            message = "Validation successful: Data file matches the model's training data."
+        else:
+            message = "Validation failed: Data file does not match the model's training data."
+    finally:
+        os.remove(model_path)
+        os.remove(data_path)
+
+    return JSONResponse(content={"message": message})
 
 @app.post("/train")
 async def train_model_endpoint(
@@ -128,7 +198,8 @@ async def predict_endpoint(
         if user_model_file:
             os.remove(model_path)  # Clean up the temporary model file
 
+
     return {"predictions": prediction}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8110)
