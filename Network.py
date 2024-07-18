@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader, TensorDataset
 import pandas as pd
 
 import optuna
+from optuna.importance import get_param_importances
+
 from functools import partial
 from easydict import EasyDict
 import pickle
@@ -210,15 +212,14 @@ def train_nn(data_path, trial_details, n_trials=5):
         # Calculate the mean gradient for each feature
         mean_gradients = feature_gradients / len(train_loader)
 
-        # Create a Dictionary with column names and their influence values
+        # Create a Dictionary with column names and their sensitivity values
         
-        influence_dict = {
-            'Feature': data_importer.column_names[:-1]
-        }
+        sensitivity_dict = {}
+        for iterFeatureNameIndex in range(len(data_importer.column_names[:-1])):
+            iterFeatureName = data_importer.column_names[iterFeatureNameIndex]
+            sensitivity_dict[iterFeatureName] = float(mean_gradients.numpy()[iterFeatureNameIndex])
 
-        influence_dict['Influence'] = []
-        for iterVal in mean_gradients.numpy():
-            influence_dict['Influence'].append(float(iterVal))
+
 
         # Testing the model
         model.eval()
@@ -230,7 +231,7 @@ def train_nn(data_path, trial_details, n_trials=5):
         # Store the model in the user attributes of the trial
         trial.set_user_attr('model', model)
         trial.set_user_attr('accuracy', accuracy)
-        trial.set_user_attr('influence', influence_dict)
+        trial.set_user_attr('sensitivity', sensitivity_dict)
 
         return accuracy
 
@@ -250,7 +251,16 @@ def train_nn(data_path, trial_details, n_trials=5):
         "batch_size": trial_details.batch_size,
         "activation": trial_details.activation,
         "accuracy": trial.user_attrs['accuracy'],
-        "influence_dict": trial.user_attrs['influence']
+        "sensitivity_dict": trial.user_attrs['sensitivity']
+    })
+
+    # Compute hyperparameter importance
+    importance = get_param_importances(study)
+    importance_df = pd.DataFrame(list(importance.items()), columns=['Hyperparameter', 'Importance'])
+
+    # Update the model's training metadata
+    best_model.training_metadata.update({
+        "hyperparameter_importance": importance_df.to_dict('records')
     })
 
     # Hash the first 64 characters of the data file
