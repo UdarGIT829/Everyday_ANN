@@ -12,6 +12,14 @@ from easydict import EasyDict
 import pickle
 
 from DataImporter import DataImporter
+import hashlib
+
+def hash_file_start(file_path, num_chars=512):
+    """Read the first `num_chars` characters of a file and return its hash."""
+    with open(file_path, 'rb') as f:
+        file_start = f.read(num_chars)
+    return hashlib.sha256(file_start).hexdigest()
+
 
 class FlexibleANN(nn.Module):
     """Description:
@@ -24,61 +32,11 @@ class FlexibleANN(nn.Module):
     Attributes:
         network (nn.Sequential): The neural network model.
         column_headers (list): List of column headers for the input features.
+        training_metadata (dict): Dictionary to store training metadata.
 
     Methods:
         forward(x): Performs a forward pass through the network.
         run(prediction_input_data, data_path): Runs the model to make predictions on the given input data.
-    
-    Usage Instructions:
-    
-    1. **Training the Model:**
-        - Use the `train_nn` function to train the model with your data and desired hyperparameters.
-        - Example:
-            ```python
-            trial_details = EasyDict({
-                "hidden_layer_sizes": {"low": 4, "high": 128},
-                "num_epochs": {"low": 50, "high": 1000},
-                "learning_rate": {"low": 1e-5, "high": 1e-1},
-                "batch_size": {"low": 16, "high": 128},
-                "activation": ['ReLU', 'Tanh', 'LeakyReLU', 'ELU', 'GELU', 'Swish']
-            })
-            best_model = train_nn('path/to/data.csv', trial_details, n_trials=100)
-            save_nn(best_model, 'best_model.pkl')
-            ```
-
-    2. **Loading the Model:**
-        - Load a previously saved model using the `load_nn` function.
-        - Example:
-            ```python
-            model = load_nn('best_model.pkl')
-            ```
-
-    3. **Making Predictions:**
-        - Use the `run` method of the loaded model to make predictions on new data.
-        - Example:
-            ```python
-            input_data = {
-                'Nitrogen': [90],
-                'Phosphorus': [42],
-                'Potassium': [43],
-                'Temperature': [20.87974371],
-                'Humidity': [82.00274423],
-                'pH_Value': [6.502985292],
-                'Rainfall': [202.9355362],
-                'Crop': ['-']
-            }
-            data_path = 'path/to/data.csv'
-            prediction = model.run(input_data, data_path)
-            print(f"Predicted Value: {prediction}")
-            ```
-    
-    4. **Running from CSV:**
-        - The `run` method can also accept a path to a CSV file as input.
-        - Example:
-            ```python
-            prediction = model.run('path/to/input_data.csv', 'path/to/data.csv')
-            print(f"Predicted Value: {prediction}")
-            ```
     """
     def __init__(self, input_size, hidden_layer_sizes, output_size, activation_function):
         super(FlexibleANN, self).__init__()
@@ -94,6 +52,7 @@ class FlexibleANN(nn.Module):
         self.network = nn.Sequential(*layers)
 
         self.column_headers = []
+        self.training_metadata = {}
     
     def forward(self, x):
         return self.network(x)
@@ -163,18 +122,19 @@ def get_activation_function(name):
     }
     return activations[name]
 
-def train_nn(data_path, trial_details, n_trials=100):
+import pandas as pd
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader, TensorDataset
+import optuna
+from functools import partial
+
+def train_nn(data_path, trial_details, n_trials=5):
 
     def objective(trial, data_path, trial_details):
-        # Hyperparameters to tune
-        hidden_layer_sizes = [trial.suggest_int(f'n_units_l{i}', trial_details.hidden_layer_sizes.low, trial_details.hidden_layer_sizes.high) 
-                              for i in range(trial.suggest_int('n_layers', 1, 3))]
-        num_epochs = trial.suggest_int('num_epochs', trial_details.num_epochs.low, trial_details.num_epochs.high)
-        learning_rate = trial.suggest_float('learning_rate', trial_details.learning_rate.low, trial_details.learning_rate.high, log=True)
-        batch_size = trial.suggest_int('batch_size', trial_details.batch_size.low, trial_details.batch_size.high)
-        activation_name = trial.suggest_categorical('activation', trial_details.activation)
-        activation_function = get_activation_function(activation_name)
-
         # Load and prepare the data
         data_importer = DataImporter(data_path)
         input_features, output_feature = data_importer.get_encoded_data()
@@ -200,6 +160,23 @@ def train_nn(data_path, trial_details, n_trials=100):
 
         # Create DataLoader for mini-batching
         train_dataset = TensorDataset(X_train, y_train)
+
+        # Hyperparameters to tune
+        hidden_layer_sizes = [trial.suggest_int(f'n_units_l{i}', trial_details.hidden_layer_sizes.low, trial_details.hidden_layer_sizes.high) 
+                              for i in range(trial.suggest_int('n_layers', 1, 3))]
+        num_epochs = trial.suggest_int('num_epochs', trial_details.num_epochs.low, trial_details.num_epochs.high)
+        learning_rate = trial.suggest_float('learning_rate', trial_details.learning_rate.low, trial_details.learning_rate.high, log=True)
+        batch_size = trial.suggest_int('batch_size', 
+                                       trial_details.batch_size.low, 
+                                       trial_details.batch_size.high)
+
+        activation_name = trial.suggest_categorical('activation', trial_details.activation)
+        activation_function = get_activation_function(activation_name)
+
+        if len(train_dataset) % batch_size == 1:
+            # Batch normalization requires at least 2 samples
+            # By default reduce (could have increased) the batch size by 1 to avoid this issue
+            batch_size -= 1
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
         # Initialize the neural network, loss function, and optimizer
@@ -210,17 +187,38 @@ def train_nn(data_path, trial_details, n_trials=100):
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
+        # To store accumulated gradients
+        feature_gradients = torch.zeros(input_size)
+
         # Training the model with backpropagation
         for epoch in range(num_epochs):
             model.train()
             epoch_loss = 0
             for batch_X, batch_y in train_loader:
+                batch_X.requires_grad = True  # Enable gradient computation for inputs
                 optimizer.zero_grad()  # Clear the gradients
                 outputs = model(batch_X)
                 loss = criterion(outputs, batch_y)
                 loss.backward()  # Backpropagation
+
+                # Accumulate gradients of the input features
+                feature_gradients += torch.abs(batch_X.grad).mean(dim=0)
+                
                 optimizer.step()  # Update the weights
                 epoch_loss += loss.item()
+
+        # Calculate the mean gradient for each feature
+        mean_gradients = feature_gradients / len(train_loader)
+
+        # Create a Dictionary with column names and their influence values
+        
+        influence_dict = {
+            'Feature': data_importer.column_names[:-1]
+        }
+
+        influence_dict['Influence'] = []
+        for iterVal in mean_gradients.numpy():
+            influence_dict['Influence'].append(float(iterVal))
 
         # Testing the model
         model.eval()
@@ -231,6 +229,8 @@ def train_nn(data_path, trial_details, n_trials=100):
         
         # Store the model in the user attributes of the trial
         trial.set_user_attr('model', model)
+        trial.set_user_attr('accuracy', accuracy)
+        trial.set_user_attr('influence', influence_dict)
 
         return accuracy
 
@@ -241,8 +241,26 @@ def train_nn(data_path, trial_details, n_trials=100):
     # Get the best model
     trial = study.best_trial
     best_model = trial.user_attrs['model']
-    return best_model
 
+    # Update the model's training metadata
+    best_model.training_metadata.update({
+        "hidden_layer_sizes": trial_details.hidden_layer_sizes,
+        "num_epochs": trial_details.num_epochs,
+        "learning_rate": trial_details.learning_rate,
+        "batch_size": trial_details.batch_size,
+        "activation": trial_details.activation,
+        "accuracy": trial.user_attrs['accuracy'],
+        "influence_dict": trial.user_attrs['influence']
+    })
+
+    # Hash the first 64 characters of the data file
+    if isinstance(data_path, str):
+        data_hash = hash_file_start(data_path)
+        best_model.training_metadata.update({
+            "data_hash": data_hash
+        })
+
+    return best_model
 
 def save_nn(model, filename):
     with open(filename, 'wb') as f:
@@ -259,7 +277,7 @@ def run_model(model, prediction_input_data, data_path):
     output = model.run(prediction_input_data, data_path)
 
     output_file = None
-    # If input_data_source is a CSV file, write the predictions back to a new CSV file
+    # If input_data_source is a CSV filename, write the predictions back to a new CSV file
     if isinstance(prediction_input_data, str) and prediction_input_data.endswith('.csv'):
         input_df = pd.read_csv(prediction_input_data)
         output_column = input_df.columns[-1]
@@ -301,6 +319,8 @@ def train_model(modelPath, data_path, trial_details: EasyDict = EasyDict(), n_tr
 
     # Save the model
     save_nn(best_model, modelPath)
+
+    return best_model.training_metadata
 
 def run_saved_model(modelPath, input_data, data_path: str):
     # Load the model
