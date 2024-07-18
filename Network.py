@@ -216,9 +216,8 @@ def train_nn(data_path, trial_details, n_trials=5):
         
         sensitivity_dict = {}
         for iterFeatureNameIndex in range(len(data_importer.column_names[:-1])):
-            iterFeatureName = data_importer.column_names[iterFeatureNameIndex]
+            iterFeatureName = data_importer.column_names[iterFeatureNameIndex] + "::" + str(data_importer.dtypes[iterFeatureNameIndex])
             sensitivity_dict[iterFeatureName] = float(mean_gradients.numpy()[iterFeatureNameIndex])
-
 
 
         # Testing the model
