@@ -36,6 +36,10 @@ Generally, aim to use a csv file as an input for the training data and for predi
 
 ### Server Usage
 
+To run the server, use the following command:
+```
+uvicorn app:app --reload
+```
 
 ## Roadmap
 ✔️ = Complete | 🔄 = In Progress | 📝 = Planning
