@@ -1,5 +1,4 @@
 # Generic_ANN
-[![Everyday ANN](https://github.com/UdarGIT829/Everyday_ANN/actions/workflows/Everyday-ANN.yml/badge.svg)](https://github.com/UdarGIT829/Everyday_ANN/actions/workflows/Everyday-ANN.yml)
 
 Generic ANN implementation, supports spreadsheet-like and features detection of input and output feature types
 
